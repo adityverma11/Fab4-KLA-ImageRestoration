@@ -1,7 +1,7 @@
 # Fab4 – AI Image Restoration for Semiconductor Inspection
 
-**Team:** Fab4
-**Event:** SEMI Hackathon 2026
+**Team:** Fab4<br>
+**Event:** SEMI Hackathon 2026<br>
 **Problem Statement:** AI-Based Restoration of Degraded Images for Semiconductor Inspection
 
 ---
