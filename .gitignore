@@ -9,7 +9,6 @@ checkpoints/
 *.bin
 *.zip
 *.mp4
-*.png
-*.jpg
+
 datasets/
 Data-public/
