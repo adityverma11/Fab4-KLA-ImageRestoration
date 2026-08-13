@@ -745,7 +745,7 @@ def main():
                 processed_images += 1
 
 
-            -
+            
             # Progress
            
 
