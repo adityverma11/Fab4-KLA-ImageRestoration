@@ -4,22 +4,13 @@ import argparse
 import subprocess
 import time
 
-
-# ============================================================
-# KLA HACKATHON 2026
-# FINAL EVALUATION / INFERENCE SCRIPT
-# ============================================================
-#
 # This script:
 #   1. Accepts test input directory
 #   2. Accepts output directory
 #   3. Accepts trained model weights
 #   4. Runs the existing inference pipeline
 #   5. Produces restored .npy images
-#
 # No training is performed.
-# No hidden test data is modified.
-# ============================================================
 
 
 def main():
@@ -58,9 +49,9 @@ def main():
     print("\nModel weights:")
     print(args.weights)
 
-    # --------------------------------------------------------
+   
     # Check paths
-    # --------------------------------------------------------
+
 
     if not os.path.isdir(args.input_dir):
         print("\nERROR: Input directory does not exist.")
@@ -72,15 +63,14 @@ def main():
         print(args.weights)
         sys.exit(1)
 
-    # --------------------------------------------------------
     # Create output directory
-    # --------------------------------------------------------
+    
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    # --------------------------------------------------------
+   
     # Check inference.py
-    # --------------------------------------------------------
+   
 
     project_dir = os.path.dirname(os.path.abspath(__file__))
     inference_script = os.path.join(project_dir, "inference.py")
@@ -90,9 +80,9 @@ def main():
         print(inference_script)
         sys.exit(1)
 
-    # --------------------------------------------------------
+    
     # Count input files
-    # --------------------------------------------------------
+   
 
     input_files = [
         f for f in os.listdir(args.input_dir)
@@ -105,9 +95,8 @@ def main():
         print("\nERROR: No .npy files found in input directory.")
         sys.exit(1)
 
-    # --------------------------------------------------------
     # Run inference
-    # --------------------------------------------------------
+   
 
     print("\n" + "=" * 70)
     print("STARTING MODEL INFERENCE")
@@ -143,9 +132,9 @@ def main():
 
     elapsed = time.time() - start_time
 
-    # --------------------------------------------------------
+   
     # Verify outputs
-    # --------------------------------------------------------
+   
 
     output_files = [
         f for f in os.listdir(args.output_dir)
@@ -160,9 +149,9 @@ def main():
     print(f"Output files    : {len(output_files)}")
     print(f"Total time      : {elapsed:.2f} seconds")
 
-    # --------------------------------------------------------
+   
     # Output verification
-    # --------------------------------------------------------
+  
 
     if len(output_files) == 0:
         print("\nERROR: No restored outputs were generated.")
