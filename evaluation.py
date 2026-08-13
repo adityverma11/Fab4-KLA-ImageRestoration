@@ -1,158 +1,189 @@
 import os
+import sys
 import argparse
+import subprocess
 import time
-import glob
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
 
-# ==========================================
-# 1. MODEL DEFINITION (EXACT MATCH)
-# ==========================================
-class SimpleGate(nn.Module):
-    def forward(self, x):
-        x1, x2 = x.chunk(2, dim=1)
-        return x1 * x2
 
-class NAFBlock(nn.Module):
-    def __init__(self, c):
-        super().__init__()
-        self.conv1 = nn.Conv2d(c, c * 2, 3, padding=1)
-        self.sg = SimpleGate()
-        self.conv2 = nn.Conv2d(c, c, 3, padding=1)
-        self.norm1 = nn.GroupNorm(1, c)
-        self.norm2 = nn.GroupNorm(1, c)
-        self.mlp = nn.Sequential(
-            nn.Conv2d(c, c * 2, 1),
-            SimpleGate(),
-            nn.Conv2d(c, c, 1)
-        )
+# ============================================================
+# KLA HACKATHON 2026
+# FINAL EVALUATION / INFERENCE SCRIPT
+# ============================================================
+#
+# This script:
+#   1. Accepts test input directory
+#   2. Accepts output directory
+#   3. Accepts trained model weights
+#   4. Runs the existing inference pipeline
+#   5. Produces restored .npy images
+#
+# No training is performed.
+# No hidden test data is modified.
+# ============================================================
 
-    def forward(self, x):
-        res = x
-        x = self.norm1(x)
-        x = self.conv1(x)
-        x = self.sg(x)
-        x = self.conv2(x)
-        x = x + res
 
-        res = x
-        x = self.norm2(x)
-        x = self.mlp(x)
-        return x + res
-
-class NAFNetSR(nn.Module):
-    def __init__(self, in_channels=1, out_channels=1, dim=32, num_blocks=4, scale=2):
-        super().__init__()
-        self.scale = scale
-        self.intro = nn.Conv2d(in_channels, dim, 3, padding=1)
-        self.blocks = nn.ModuleList([NAFBlock(dim) for _ in range(num_blocks)])
-        self.upsample = nn.Sequential(
-            nn.Conv2d(dim, dim * (scale ** 2), 3, padding=1),
-            nn.PixelShuffle(scale)
-        )
-        self.outro = nn.Conv2d(dim, out_channels, 3, padding=1)
-
-    def forward(self, x):
-        res = F.interpolate(x, scale_factor=self.scale, mode='bilinear', align_corners=False)
-        x = self.intro(x)
-        for block in self.blocks:
-            x = block(x)
-        x = self.upsample(x)
-        x = self.outro(x)
-        return x + res
-
-# ==========================================
-# 2. DATASET LOADER FOR EVALUATION
-# ==========================================
-class TestDataset(Dataset):
-    def __init__(self, noisy_paths):
-        self.noisy_paths = noisy_paths
-
-    def __len__(self):
-        return len(self.noisy_paths)
-
-    def __getitem__(self, idx):
-        file_path = self.noisy_paths[idx]
-        noisy_img = np.load(file_path).astype(np.float32)
-        if noisy_img.ndim == 2:
-            noisy_tensor = torch.from_numpy(noisy_img).unsqueeze(0)
-        else:
-            noisy_tensor = torch.from_numpy(noisy_img)
-            
-        return noisy_tensor, os.path.basename(file_path)
-
-# ==========================================
-# 3. STANDALONE EVALUATION SCRIPT
-# ==========================================
 def main():
-    parser = argparse.ArgumentParser(description="KLA Benchmarking Evaluation Script - Team Fab4")
-    parser.add_argument("--input_dir", type=str, required=True, help="Path to input test directory containing .npy files")
-    parser.add_argument("--output_dir", type=str, required=True, help="Path to save restored .npy files")
-    parser.add_argument("--weights", type=str, default="nafnet_sr_best.pth", help="Path to model weights file")
+
+    parser = argparse.ArgumentParser(
+        description="KLA Hackathon 2026 - Final Evaluation Script"
+    )
+    parser.add_argument(
+    "--input_dir",
+    default=os.path.join("Data-public", "Test_NoisyLR", "NoisyLR")
+)
+
+    parser.add_argument(
+    "--output_dir",
+    default="Restored_Test_Output"
+)
+
+    parser.add_argument(
+    "--weights",
+    default=os.path.join("weights", "best_model.pth")
+)
+    
+
     args = parser.parse_args()
+
+    print("=" * 70)
+    print("KLA HACKATHON 2026 - FINAL EVALUATION")
+    print("=" * 70)
+
+    print("\nInput directory :")
+    print(args.input_dir)
+
+    print("\nOutput directory:")
+    print(args.output_dir)
+
+    print("\nModel weights:")
+    print(args.weights)
+
+    # --------------------------------------------------------
+    # Check paths
+    # --------------------------------------------------------
+
+    if not os.path.isdir(args.input_dir):
+        print("\nERROR: Input directory does not exist.")
+        print(args.input_dir)
+        sys.exit(1)
+
+    if not os.path.isfile(args.weights):
+        print("\nERROR: Model weights not found.")
+        print(args.weights)
+        sys.exit(1)
+
+    # --------------------------------------------------------
+    # Create output directory
+    # --------------------------------------------------------
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"[Team Fab4] Running evaluation on device: {device}")
+    # --------------------------------------------------------
+    # Check inference.py
+    # --------------------------------------------------------
 
-    # Recursive check for .npy files inside input_dir
-    noisy_paths = sorted(glob.glob(os.path.join(args.input_dir, "**", "*.npy"), recursive=True))
-    if not noisy_paths:
-        noisy_paths = sorted(glob.glob(os.path.join(args.input_dir, "*.npy")))
+    project_dir = os.path.dirname(os.path.abspath(__file__))
+    inference_script = os.path.join(project_dir, "inference.py")
 
-    if not noisy_paths:
-        print(f"[Error] No .npy files found in path: {args.input_dir}")
-        return
+    if not os.path.isfile(inference_script):
+        print("\nERROR: inference.py not found.")
+        print(inference_script)
+        sys.exit(1)
 
-    print(f"[Team Fab4] Found {len(noisy_paths)} test files in '{args.input_dir}'.")
+    # --------------------------------------------------------
+    # Count input files
+    # --------------------------------------------------------
 
-    # Load Model Weights
-    model = NAFNetSR(dim=32, num_blocks=4, scale=2).to(device)
-    if os.path.exists(args.weights):
-        try:
-            model.load_state_dict(torch.load(args.weights, map_location=device, weights_only=True))
-        except TypeError:
-            model.load_state_dict(torch.load(args.weights, map_location=device))
-        print(f"[Team Fab4] Weights successfully loaded from '{args.weights}'")
-    else:
-        print(f"[Error] Weights file '{args.weights}' missing!")
-        return
+    input_files = [
+        f for f in os.listdir(args.input_dir)
+        if f.lower().endswith(".npy")
+    ]
 
-    model.eval()
+    print("\nInput files:", len(input_files))
 
-    test_dataset = TestDataset(noisy_paths)
-    test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False, num_workers=0)
+    if len(input_files) == 0:
+        print("\nERROR: No .npy files found in input directory.")
+        sys.exit(1)
 
-    print("Starting batch evaluation...")
+    # --------------------------------------------------------
+    # Run inference
+    # --------------------------------------------------------
+
+    print("\n" + "=" * 70)
+    print("STARTING MODEL INFERENCE")
+    print("=" * 70)
+
     start_time = time.time()
 
-    with torch.no_grad():
-        for noisy_batch, filenames in test_loader:
-            noisy_batch = noisy_batch.to(device)
-            
-            if device.type == 'cuda':
-                with torch.amp.autocast('cuda'):
-                    restored_batch = model(noisy_batch)
-            else:
-                restored_batch = model(noisy_batch)
+    command = [
+        sys.executable,
+        inference_script,
+        "--input_dir",
+        args.input_dir,
+        "--output_dir",
+        args.output_dir,
+        "--weights",
+        args.weights
+    ]
 
-            restored_np = restored_batch.cpu().numpy()
-            for i in range(len(filenames)):
-                out_path = os.path.join(args.output_dir, filenames[i])
-                img_to_save = restored_np[i].squeeze()
-                np.save(out_path, img_to_save)
+    print("\nRunning:")
+    print(" ".join(f'"{x}"' if " " in x else x for x in command))
+    print()
 
-    total_time = time.time() - start_time
-    avg_speed = (total_time / len(test_dataset)) * 1000
+    result = subprocess.run(command)
 
-    print(f"\n[Benchmarking Complete]")
-    print(f"- Total Time: {total_time:.2f} seconds")
-    print(f"- Average Speed: {avg_speed:.2f} ms/image")
-    print(f"- Restored files saved at: {args.output_dir}")
+    if result.returncode != 0:
+        print("\n" + "=" * 70)
+        print("EVALUATION FAILED")
+        print("=" * 70)
+        print(
+            "\ninference.py returned an error."
+        )
+        sys.exit(result.returncode)
+
+    elapsed = time.time() - start_time
+
+    # --------------------------------------------------------
+    # Verify outputs
+    # --------------------------------------------------------
+
+    output_files = [
+        f for f in os.listdir(args.output_dir)
+        if f.lower().endswith(".npy")
+    ]
+
+    print("\n" + "=" * 70)
+    print("EVALUATION COMPLETED")
+    print("=" * 70)
+
+    print(f"\nInput files     : {len(input_files)}")
+    print(f"Output files    : {len(output_files)}")
+    print(f"Total time      : {elapsed:.2f} seconds")
+
+    # --------------------------------------------------------
+    # Output verification
+    # --------------------------------------------------------
+
+    if len(output_files) == 0:
+        print("\nERROR: No restored outputs were generated.")
+        sys.exit(1)
+
+    if len(output_files) != len(input_files):
+        print(
+            "\nWARNING: Number of output files does not match "
+            "number of input files."
+        )
+
+    print("\nRestored outputs:")
+    print(args.output_dir)
+
+    print("\nNo training was performed.")
+    print("The trained checkpoint was used only for inference.")
+
+    print("\n" + "=" * 70)
+    print("READY FOR KLA BENCHMARKING")
+    print("=" * 70)
+
 
 if __name__ == "__main__":
     main()

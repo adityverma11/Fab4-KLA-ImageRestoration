@@ -1,109 +1,138 @@
+# Fab4 – AI Image Restoration for Semiconductor Inspection
+
 **Team:** Fab4  
 **Event:** SEMI Hackathon 2026  
 **Problem Statement:** AI-Based Restoration of Degraded Images for Semiconductor Inspection
 
+---
+
 ## 🎯 Problem
 
-Low-dose SEM imaging in semiconductor inspection introduces:
-* **Poisson-Gaussian / speckle noise**
-* **2× spatial downsampling**
-* Loss of fine wafer-line and defect details
+Restore noisy, low-resolution SEM images while preserving important semiconductor structures and defect details.
 
-**Input:** Noisy LR `128×128` `.npy` image
-**Target:** Clean HR `256×256` image
+**Input:** Noisy LR `128×128` single-channel `.npy` image  
+**Target:** Restored HR `256×256` single-channel `.npy` image
 
 ---
+
 ## 💡 Our Solution
-We use a lightweight **NAFNet-SR** model for **joint denoising + 2× super-resolution**.
+
+We use a custom **NAFNet-style Super-Resolution (NAFNet-SR)** model for **joint denoising + 2× super-resolution**.
+
 ```text
 Noisy LR (128×128)
         ↓
-   Conv 3×3
+   Input Conv
         ↓
-    NAFBlocks
-(Simple Gate + SCA)
+   NAF Blocks ×8
+        ↓
+   Middle Conv
         ↓
  PixelShuffle ×2
         ↓
+   Output Conv
+        ↓
+ Global Residual
+        ↓
 Restored HR (256×256)
-```
-The model is **activation-free**, lightweight, and optimized for fast GPU inference.
+The model is lightweight and designed for fast GPU inference.
 
----
+Model Configuration
 
-## 🧠 Loss Function
-We combine spatial and frequency-domain reconstruction losses:
-$$
-L_{total} = L_{Charbonnier} + \lambda L_{FFT}
-$$
+| Parameter         |   Value |
+| ----------------- | ------: |
+| Feature Dimension |      48 |
+| NAF Blocks        |       8 |
+| Upscaling Factor  |      ×2 |
+| Model Parameters  | 662,401 |
+| Input             | 128×128 |
+| Output            | 256×256 |
 
-* **Charbonnier Loss** → pixel-level restoration
-* **FFT Loss** → preserves high-frequency SEM structures and fine details
----
-## 📊 Verified Results
+🧠 Loss Function
 
-**Hardware:** NVIDIA GeForce RTX 3050 6GB Laptop GPU
+We use a combined reconstruction loss:
+L = Charbonnier + 0.05 × FFT + 0.15 × SSIM
+Charbonnier Loss → pixel-level restoration
+FFT Loss → frequency-domain reconstruction
+SSIM Loss → structural similarity
 
-| Metric              |                  Result |
-| ------------------- | ----------------------: |
-| Input → Output      |     `128×128 → 256×256` |
-| Evaluation Speed    |      **20.63 ms/image** |
-| 3,200 Images        |           **66.02 sec** |
-| Batch Inference     |      **26.94 ms/image** |
-| Model Size          |             **0.64 MB** |
-| Tensor Keys         |                  **54** |
-| Loss (Epoch 1 → 10) | **0.053853 → 0.036088** |
-### Intensity Restoration
+Training Configuration
+| Parameter     | Value |
+| ------------- | ----: |
+| Optimizer     | AdamW |
+| Learning Rate |  1e-4 |
+| Batch Size    |     8 |
+| Epochs        |    60 |
 
-```text
-Noisy Input : [0.00, 1.54]
-Restored    : [0.01, 1.49]
-Ground Truth: [0.00, 1.00]
-```
----
-## ▶️ Run the Project
-### 1. Clone
-```bash
+Training includes random cropping, horizontal/vertical flips, and 90° rotations.
+
+📊 Verified Results
+
+Hardware: NVIDIA GeForce RTX 3050 6GB Laptop GPU
+| Metric            |                Result |
+| ----------------- | --------------------: |
+| Test Images       |               **400** |
+| Outputs Generated |               **400** |
+| Input → Output    | **128×128 → 256×256** |
+| Model Parameters  |           **662,401** |
+| Inference Time    |        **10.278 sec** |
+| Average           |   **25.695 ms/image** |
+| Throughput        |  **38.92 images/sec** |
+400/400 outputs were successfully generated.
+
+▶️ Run the Project
+1. Clone
 git clone https://github.com/adityverma11/Fab4-KLA-ImageRestoration.git
 cd Fab4-KLA-ImageRestoration
-```
-### 2. Install
-```bash
+
+2. Install
 pip install -r requirements.txt
-```
-### 3. Dataset
+
+For the tested CUDA 12.1 setup:
+pip install torch==2.5.1+cu121 torchvision==0.20.1+cu121 --index-url https://download.pytorch.org/whl/cu121
+
+3. Dataset
+
 Download the SEM dataset:
-**Google Drive:**
+Google Drive:
+
 https://drive.google.com/drive/folders/1VKiFW-kDk9-q5XRPu3nrl08OM94EwzV6?usp=sharing
 Place it as:
-```text
 Data-public/
-└── train/
-    ├── NoisyLR/
-    └── CleanHR/
-```
-### 4. Run Evaluation
-```bash
-python evaluation.py \
-  --input_dir Data-public/train/NoisyLR \
-  --output_dir outputs
-```
----
-## 📁 Repository
-```text
+├── train/
+│   ├── NoisyLR/
+│   └── CleanHR/
+│
+└── Test_NoisyLR/
+    └── NoisyLR/
+
+4. Run Evaluation
+python evaluation.py ^
+  --input_dir "Data-public\Test_NoisyLR\NoisyLR" ^
+  --output_dir "Restored_Test_Output" ^
+  --weights "weights\best_model.pth"
+
+📁 Repository
 Fab4-KLA-ImageRestoration/
-├── train.py              # Training
-├── evaluation.py        # Evaluation & benchmarking
-├── inference.py         # Batch inference
-├── visualize.py         # Visualization & verification
-├── nafnet_sr_best.pth   # Pre-trained weights (0.64 MB)
+├── train.py
+├── evaluation.py
+├── inference.py
+├── visualize_results.py
 ├── requirements.txt
-└── outputs/
+├── weights/
+│   └── best_model.pth
+├── Data-public/
+│   ├── train/
+│   │   ├── NoisyLR/
+│   │   └── CleanHR/
+│   └── Test_NoisyLR/
+│       └── NoisyLR/
+├── Restored_Test_Output/
+└── results/
+
+🔑 Key Highlights
+
+NAFNet-SR • Denoising + 2× Super-Resolution • Charbonnier + FFT + SSIM
+
+662K Parameters • 400/400 Successful Outputs • 38.92 Images/sec • 25.695 ms/image • Direct .npy Processing
 ```
----
-## 🔑 Key Highlights
-**NAFNet-SR** • **Denoising + Super-Resolution** • **FFT Loss**
-**0.64 MB Model** • **20.63 ms/image** • **Direct `.npy` Processing**
-
----
-
