@@ -125,9 +125,6 @@ for i, filename in enumerate(selected):
         fontsize=14,
         fontweight="bold"
     )
-
-    
-
    
 # ============================================================
 # COLUMN LABELS
