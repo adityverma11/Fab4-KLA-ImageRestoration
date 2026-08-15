@@ -400,29 +400,19 @@ def main():
     )
 
     parser.add_argument(
-        "--input_dir",
-        type=str,
-        required=True,
-        help="Directory containing input .npy files"
-    )
+    "--input_dir",
+    default="Data-public/Test_NoisyLR"
+)
 
     parser.add_argument(
-        "--output_dir",
-        type=str,
-        required=True,
-        help="Directory where restored .npy files will be saved"
-    )
+    "--output_dir",
+    default="Restored_Test_Output"
+)
 
     parser.add_argument(
-        "--weights",
-        type=str,
-        default=os.path.join(
-            "weights",
-            "best_model.pth"
-        ),
-        help="Path to trained checkpoint"
-    )
-
+    "--weights",
+    default="weights/best_model.pth"
+)
     parser.add_argument(
         "--batch_size",
         type=int,
