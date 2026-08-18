@@ -141,7 +141,7 @@ Data-public/
 ### 4. Run Evaluation
 
 ```bash
-python evaluation.py ^
+python run.py ^
   --input_dir "Data-public\Test_NoisyLR\NoisyLR" ^
   --output_dir "Restored_Test_Output" ^
   --weights "weights\best_model.pth"
@@ -154,7 +154,7 @@ python evaluation.py ^
 ```
 Fab4-KLA-ImageRestoration/
 ├── train.py
-├── evaluation.py
+├── run.py
 ├── inference.py
 ├── visualize_results.py
 ├── requirements.txt
